@@ -172,7 +172,6 @@ func (cs BlurbServer) getBlurb(c echo.Context) error {
 		</body>
 		<script type="text/javascript">
 			fit();
-			window.onorientationchange = fit;
 			rawurl = "%s";
 			streamurl = "%s"
 			watchUpdates(rawurl, streamurl);
