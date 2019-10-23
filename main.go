@@ -14,7 +14,7 @@ import (
 
 const LETTERS = "abcdefghijklmnopqrstuvwxyz"
 const METABLURB = `
-<u><em>Blurb.cloud</em></u> is a shared, local billboard. Take an old smartphone or tablet, mount it on the wall, and browse to this URL to display the blurb. Anyone with the URL can change the blurb, and anyone who passes by the display can see the URL.`
+<u><em>Blurb.cloud</em></u> is a shared, local billboard. Take an old tablet or smartphone, mount it on the wall, and browse to this page to display the blurb. Anyone with the link can change the blurb, and anyone who passes by the display can see the link.`
 
 type BlurbServer struct {
 	db *bolt.DB
@@ -80,7 +80,8 @@ func (cs BlurbServer) getEditor(c echo.Context) error {
 	text := cs.getBlurbText(blurbId)
 	style := `<head>
 	<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <style>.ql-editor { letter-spacing: 1px; line-height: 1.4; }
+	<style>.ql-editor { letter-spacing: 1px; line-height: 1.4; height: auto; }
+	#quill { height: auto; }
 	</style>
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
 	</head>`
@@ -112,6 +113,8 @@ func (cs BlurbServer) getEditor(c echo.Context) error {
 				textarea.value = editor.innerHTML;
 			});
 			var formstuff = document.querySelector("#formstuff");
+			var quilldiv = document.querySelector("#quill")
+			quilldiv.appendChild(toolbar)
 			formstuff.appendChild(textarea)
 		</script>
 	</body>
