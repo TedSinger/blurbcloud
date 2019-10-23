@@ -38,7 +38,7 @@ func main() {
 	e.GET("/blurb/:blurb", cs.getBlurb)
 	// https://softwareengineering.stackexchange.com/questions/114156/why-are-there-are-no-put-and-delete-methods-on-html-forms
 	e.POST("/blurb/:blurb", cs.putBlurb) 
-	e.Start(":8081")
+	e.Start(":22000")
 	defer db.Close()
 }
 
@@ -85,8 +85,10 @@ func (cs BlurbServer) getEditor(c echo.Context) error {
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
 	</head>`
 	template := `
-	%s
 	<html>
+        %s
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<body>
 		<form action="/blurb/%s" method="POST" target="_self">
 			<div id="formstuff">
 				<input type="submit" value="Post this Blurb"></input>
@@ -112,6 +114,7 @@ func (cs BlurbServer) getEditor(c echo.Context) error {
 			var formstuff = document.querySelector("#formstuff");
 			formstuff.appendChild(textarea)
 		</script>
+	</body>
 	</html>
 	`
 	return c.HTML(http.StatusOK, fmt.Sprintf(template, style, blurbId, text))
@@ -152,7 +155,7 @@ func (cs BlurbServer) getBlurb(c echo.Context) error {
 		<style>
 			button { margin: auto; display: block; }
 			p { margin: 0em; }
-			#text { letter-spacing: 1px; line-height: 1.4; white-space: pre-line; font-family: Sans-serif; word-wrap: break-word;}
+			#text { letter-spacing: 1px; line-height: 1.4; font-family: Sans-serif; word-wrap: break-word;}
 		</style>
 	</head>
 	<html>
