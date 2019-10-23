@@ -13,8 +13,7 @@ import (
 )
 
 const LETTERS = "abcdefghijklmnopqrstuvwxyz"
-const METABLURB = `
-<u><em>Blurb.cloud</em></u> is a shared, local billboard. Take an old tablet or smartphone, mount it on the wall, and browse to this page to display the blurb. Anyone with the link can change the blurb, and anyone who passes by the display can see the link.`
+const METABLURB = `<u><em>Blurb.cloud</em></u> is a shared, local billboard. Take an old tablet or smartphone, mount it on the wall, and browse to this page to display the blurb. Anyone with the link can change the blurb, and anyone who passes by the display can see the link.`
 
 type BlurbServer struct {
 	db *bolt.DB
@@ -158,21 +157,22 @@ func (cs BlurbServer) getBlurb(c echo.Context) error {
 		<style>
 			button { margin: auto; display: block; }
 			p { margin: 0em; }
-			#text { letter-spacing: 1px; line-height: 1.4; font-family: Sans-serif; word-wrap: break-word;}
+			#text { letter-spacing: 1px; line-height: 1.4; font-family: Sans-serif; word-wrap: break-word; height: auto;}
 		</style>
 	</head>
 	<html>
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<body>
 			<div id="all">
-				<a href="%s"><button>Edit: %s</button></a>
 				<div id="text">
 					%s
 				</div>
+				<a href="%s"><button>Edit: %s</button></a>
 			</div>
 		</body>
 		<script type="text/javascript">
 			fit();
+			window.onorientationchange = fit;
 			rawurl = "%s";
 			streamurl = "%s"
 			watchUpdates(rawurl, streamurl);
@@ -181,9 +181,9 @@ func (cs BlurbServer) getBlurb(c echo.Context) error {
 	`
 	return c.HTML(http.StatusOK, 
 		fmt.Sprintf(template, 
-			"/editor/" + blurbId, 
-			"/blurb/" + blurbId, 
 			strings.ReplaceAll(string(text), "\n", "<br>"),
+			"/editor/" + blurbId,
+			"/blurb/" + blurbId,
 			"/raw/" + blurbId,
 			"/stream/" + blurbId))
 }
