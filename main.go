@@ -106,7 +106,7 @@ func (cs BlurbServer) getEditor(c echo.Context) error {
 			var button = document.querySelector('input');
 			toolbar.insertBefore(button, toolbar.childNodes[0]);
 			var editor = document.querySelector('.ql-editor');
-			editor.innerHTML = textarea.value;
+			quill.clipboard.dangerouslyPasteHTML("%s", "silent");
 			textarea.style.visibility = 'hidden';
 			quill.on('text-change', function(delta) {
 				textarea.value = editor.innerHTML;
@@ -119,7 +119,7 @@ func (cs BlurbServer) getEditor(c echo.Context) error {
 	</body>
 	</html>
 	`
-	return c.HTML(http.StatusOK, fmt.Sprintf(template, style, blurbId, text))
+	return c.HTML(http.StatusOK, fmt.Sprintf(template, style, blurbId, text, text))
 }
 
 func (cs BlurbServer) getRoot(c echo.Context) error {
