@@ -10,11 +10,11 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 )
 
-func (bs BlurbServer) getBlurb(c echo.Context) error {
+func (bs BlurbServer) getView(c echo.Context) error {
 	blurbId := c.Param("blurb")
 	blurbData := BlurbData{blurbId,
-		template.HTML(bs.getBlurbText(blurbId)),
-		getPng(blurbId)}
+		template.HTML(bs.readBlurb(blurbId)),
+		readPng(blurbId)}
 	ret := bytes.Buffer{}
 	bs.viewHtml.Execute(&ret, blurbData)
 	return c.HTML(http.StatusOK, ret.String())
@@ -23,14 +23,14 @@ func (bs BlurbServer) getBlurb(c echo.Context) error {
 func (bs BlurbServer) getEditor(c echo.Context) error {
 	blurbId := c.Param("blurb")
 	blurbData := BlurbData{blurbId,
-		template.HTML(bs.getBlurbText(blurbId)),
+		template.HTML(bs.readBlurb(blurbId)),
 		""}
 	ret := bytes.Buffer{}
 	bs.editorHtml.Execute(&ret, blurbData)
 	return c.HTML(http.StatusOK, ret.String())
 }
 
-func (bs BlurbServer) streamUpdates(c echo.Context) error {
+func (bs BlurbServer) getStreamingUpdates(c echo.Context) error {
 	blurbId := c.Param("blurb")
 	oldText := ""
 	c.Response().Header().Set(echo.HeaderContentType, "text/event-stream")
@@ -38,7 +38,7 @@ func (bs BlurbServer) streamUpdates(c echo.Context) error {
 	ch, subId := bs.sub(blurbId)
 	defer bs.unsub(blurbId, subId)
 	for <-ch {
-		text := bs.getBlurbText(blurbId)
+		text := bs.readBlurb(blurbId)
 		if text != oldText {
 			for _, chunk := range strings.Split(text, "\n") {
 				c.Response().Write([]byte("data: " + chunk + "\n"))
@@ -53,12 +53,12 @@ func (bs BlurbServer) streamUpdates(c echo.Context) error {
 
 func (bs BlurbServer) getRoot(c echo.Context) error {
 	c.Response().Header().Set("Cache-control", "no-cache")
-	return c.Redirect(301, "/blurb/"+getNewBlurbId())
+	return c.Redirect(301, "/blurb/"+genNewBlurbId())
 }
 
 func (bs BlurbServer) getRaw(c echo.Context) error {
 	blurbId := c.Param("blurb")
-	text := bs.getBlurbText(blurbId)
+	text := bs.readBlurb(blurbId)
 	return c.String(200, text)
 }
 
@@ -70,7 +70,7 @@ func (bs BlurbServer) putBlurb(c echo.Context) error {
 	p.AllowStyles("background-color", "color").MatchingHandler(rgbOfInts).Globally()
 	text = p.Sanitize(text)
 	println(blurbId + " : " + text)
-	err := bs.putBlurbText(blurbId, text)
+	err := bs.writeBlurb(blurbId, text)
 	if err == nil {
 		return c.Redirect(http.StatusSeeOther, "/blurb/"+blurbId)
 	} else {

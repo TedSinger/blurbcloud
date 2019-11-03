@@ -52,17 +52,17 @@ func main() {
 	e := echo.New()
 	e.Static("/static", "static")
 	e.GET("/", bs.getRoot)
-	e.GET("/stream/:blurb", bs.streamUpdates)
+	e.GET("/stream/:blurb", bs.getStreamingUpdates)
 	e.GET("/editor/:blurb", bs.getEditor)
 	e.GET("/raw/:blurb", bs.getRaw)
-	e.GET("/blurb/:blurb", bs.getBlurb)
+	e.GET("/blurb/:blurb", bs.getView)
 	// https://softwareengineering.stackexchange.com/questions/114156/why-are-there-are-no-put-and-delete-methods-on-html-forms
 	e.POST("/blurb/:blurb", bs.putBlurb)
 	e.Start(":22000")
 	defer db.Close()
 }
 
-func getNewBlurbId() string {
+func genNewBlurbId() string {
 	ret := ""
 	for i := 0; i < 4; i++ {
 		n := rand.Intn(len(LETTERS))
@@ -72,7 +72,7 @@ func getNewBlurbId() string {
 	return ret
 }
 
-func (bs BlurbServer) getBlurbText(blurbId string) string {
+func (bs BlurbServer) readBlurb(blurbId string) string {
 	var text []byte
 	bs.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Blurbs"))
@@ -86,7 +86,7 @@ func (bs BlurbServer) getBlurbText(blurbId string) string {
 	}
 }
 
-func (bs BlurbServer) putBlurbText(blurbId, text string) error {
+func (bs BlurbServer) writeBlurb(blurbId, text string) error {
 
 	err := bs.db.Update(func(tx *bolt.Tx) error {
 		tx.CreateBucketIfNotExists([]byte("Blurbs"))
@@ -98,7 +98,7 @@ func (bs BlurbServer) putBlurbText(blurbId, text string) error {
 	return err
 }
 
-func getPng(blurbId string) string {
+func readPng(blurbId string) string {
 	var png []byte
 	// should i cache any of these in the db?
 	png, err := qrcode.Encode("http://blurb.cloud/blurb/"+blurbId, qrcode.High, 120)
