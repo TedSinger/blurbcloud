@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/base64"
-	"fmt"
 	"html/template"
 	"io/ioutil"
 	"math/rand"
@@ -22,22 +21,22 @@ const LETTERS = "abcdefghijklmnopqrstuvwxyz"
 const METABLURB = `<u><em style='background-color: rgb(255, 240, 201)'>Blurb.cloud</em></u> is a shared, local billboard. Take an old tablet or smartphone, mount it on the wall, and browse to this page to display the blurb. Anyone with the link can change the blurb, and anyone who passes by the display can see the link.`
 
 type BlurbTemplates struct {
-	editorHead string
+	editorHtml *template.Template
 	editorJs   string
 	viewHtml   *template.Template
 }
 
 type BlurbData struct {
 	Id   string
-	Text string
+	Text template.HTML
 	Png  string
 }
 
 func GetTemplates() BlurbTemplates {
-	editorHead, _ := ioutil.ReadFile("static/editorHead.html")
+	editorHtml, _ := template.ParseFiles("static/editor.html")
 	editorJs, _ := ioutil.ReadFile("static/editorFuncs.js")
 	viewHtml, _ := template.ParseFiles("static/view.html")
-	return BlurbTemplates{string(editorHead), string(editorJs), viewHtml}
+	return BlurbTemplates{editorHtml, string(editorJs), viewHtml}
 }
 
 type BlurbServer struct {
@@ -101,28 +100,12 @@ func (cs BlurbServer) streamingUpdates(c echo.Context) error {
 
 func (cs BlurbServer) getEditor(c echo.Context) error {
 	blurbId := c.Param("blurb")
-	text := cs.getBlurbText(blurbId)
-	template := `
-	<html>
-        %s
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<body>
-		<form action="/blurb/%s" method="POST" target="_self">
-			<div id="formstuff">
-				<input type="submit" value="Post this Blurb"></input>
-				<textarea type="text" name="text">%s</textarea>
-				<div id="quill"></div>
-			</div>
-		</form>
-		<script type="text/javascript">
-			%s
-			// FIXME: interacts badly with quotes in the inline styles
-			initQuill("%s")
-		</script>
-	</body>
-	</html>
-	`
-	return c.HTML(http.StatusOK, fmt.Sprintf(template, cs.editorHead, blurbId, text, cs.editorJs, text))
+	blurbData := BlurbData{blurbId,
+		template.HTML(cs.getBlurbText(blurbId)),
+		""}
+	ret := bytes.Buffer{}
+	cs.editorHtml.Execute(&ret, blurbData)
+	return c.HTML(http.StatusOK, ret.String())
 }
 
 func (cs BlurbServer) getRoot(c echo.Context) error {
@@ -163,7 +146,7 @@ func (cs BlurbServer) getRaw(c echo.Context) error {
 func (cs BlurbServer) getBlurb(c echo.Context) error {
 	blurbId := c.Param("blurb")
 	blurbData := BlurbData{blurbId,
-		cs.getBlurbText(blurbId),
+		template.HTML(cs.getBlurbText(blurbId)),
 		getPng(blurbId)}
 	ret := bytes.Buffer{}
 	cs.viewHtml.Execute(&ret, blurbData)
