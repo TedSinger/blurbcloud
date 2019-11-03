@@ -46,6 +46,8 @@ func main() {
 		tx.CreateBucketIfNotExists([]byte("Blurbs"))
 		return nil
 	})
+	now := time.Now()
+	rand.Seed(now.UnixNano())
 
 	e := echo.New()
 	e.Static("/static", "static")
@@ -61,8 +63,6 @@ func main() {
 }
 
 func getNewBlurbId() string {
-	now := time.Now()
-	rand.Seed(now.UnixNano())
 	ret := ""
 	for i := 0; i < 4; i++ {
 		n := rand.Intn(len(LETTERS))
@@ -103,14 +103,12 @@ func rgbOfInts(s string) bool {
 }
 
 func (cs BlurbServer) sub(blurbId string) (chan bool, int) {
-	now := time.Now()
 	subId := 0
 	_, ok := cs.subs[blurbId]
 	if !ok {
 		cs.subs[blurbId] = map[int]chan bool{}
 	}
 	for ok := true; ok; _, ok = cs.subs[blurbId][subId] {
-		rand.Seed(now.UnixNano())
 		subId = rand.Int()
 	}
 	ch := make(chan bool)
