@@ -41,8 +41,8 @@ type BlurbServer struct {
 func main() {
 	db, _ := bolt.Open("blurbs.db", 0600, nil)
 
-	cs := BlurbServer{db, GetTemplates(), map[string]map[int]chan bool{}}
-	cs.db.Update(func(tx *bolt.Tx) error {
+	bs := BlurbServer{db, GetTemplates(), map[string]map[int]chan bool{}}
+	bs.db.Update(func(tx *bolt.Tx) error {
 		tx.CreateBucketIfNotExists([]byte("Blurbs"))
 		return nil
 	})
@@ -51,13 +51,13 @@ func main() {
 
 	e := echo.New()
 	e.Static("/static", "static")
-	e.GET("/", cs.getRoot)
-	e.GET("/stream/:blurb", cs.streamUpdates)
-	e.GET("/editor/:blurb", cs.getEditor)
-	e.GET("/raw/:blurb", cs.getRaw)
-	e.GET("/blurb/:blurb", cs.getBlurb)
+	e.GET("/", bs.getRoot)
+	e.GET("/stream/:blurb", bs.streamUpdates)
+	e.GET("/editor/:blurb", bs.getEditor)
+	e.GET("/raw/:blurb", bs.getRaw)
+	e.GET("/blurb/:blurb", bs.getBlurb)
 	// https://softwareengineering.stackexchange.com/questions/114156/why-are-there-are-no-put-and-delete-methods-on-html-forms
-	e.POST("/blurb/:blurb", cs.putBlurb)
+	e.POST("/blurb/:blurb", bs.putBlurb)
 	e.Start(":22000")
 	defer db.Close()
 }
@@ -72,9 +72,9 @@ func getNewBlurbId() string {
 	return ret
 }
 
-func (cs BlurbServer) getBlurbText(blurbId string) string {
+func (bs BlurbServer) getBlurbText(blurbId string) string {
 	var text []byte
-	cs.db.View(func(tx *bolt.Tx) error {
+	bs.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Blurbs"))
 		text = b.Get([]byte(blurbId))
 		return nil
@@ -86,15 +86,15 @@ func (cs BlurbServer) getBlurbText(blurbId string) string {
 	}
 }
 
-func (cs BlurbServer) putBlurbText(blurbId, text string) error {
+func (bs BlurbServer) putBlurbText(blurbId, text string) error {
 
-	err := cs.db.Update(func(tx *bolt.Tx) error {
+	err := bs.db.Update(func(tx *bolt.Tx) error {
 		tx.CreateBucketIfNotExists([]byte("Blurbs"))
 		b := tx.Bucket([]byte("Blurbs"))
 		err := b.Put([]byte(blurbId), []byte(text))
 		return err
 	})
-	go cs.pub(blurbId)
+	go bs.pub(blurbId)
 	return err
 }
 
@@ -114,27 +114,27 @@ func rgbOfInts(s string) bool {
 	return m
 }
 
-func (cs BlurbServer) sub(blurbId string) (chan bool, int) {
+func (bs BlurbServer) sub(blurbId string) (chan bool, int) {
 	subId := 0
-	_, ok := cs.subs[blurbId]
+	_, ok := bs.subs[blurbId]
 	if !ok {
-		cs.subs[blurbId] = map[int]chan bool{}
+		bs.subs[blurbId] = map[int]chan bool{}
 	}
-	for ok := true; ok; _, ok = cs.subs[blurbId][subId] {
+	for ok := true; ok; _, ok = bs.subs[blurbId][subId] {
 		subId = rand.Int()
 	}
 	ch := make(chan bool)
-	cs.subs[blurbId][subId] = ch
+	bs.subs[blurbId][subId] = ch
 	return ch, subId
 }
 
-func (cs BlurbServer) unsub(blurbId string, subId int) {
-	delete(cs.subs[blurbId], subId)
+func (bs BlurbServer) unsub(blurbId string, subId int) {
+	delete(bs.subs[blurbId], subId)
 }
 
-func (cs BlurbServer) pub(blurbId string) {
+func (bs BlurbServer) pub(blurbId string) {
 	// if a channel is closed, this blocks forever. potential resource leak, but it shouldn't hurt clients
-	for _, channel := range cs.subs[blurbId] {
+	for _, channel := range bs.subs[blurbId] {
 		channel <- true
 	}
 }
