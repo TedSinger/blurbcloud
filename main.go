@@ -86,6 +86,18 @@ func (cs BlurbServer) getBlurbText(blurbId string) string {
 	}
 }
 
+func (cs BlurbServer) putBlurbText(blurbId, text string) error {
+
+	err := cs.db.Update(func(tx *bolt.Tx) error {
+		tx.CreateBucketIfNotExists([]byte("Blurbs"))
+		b := tx.Bucket([]byte("Blurbs"))
+		err := b.Put([]byte(blurbId), []byte(text))
+		return err
+	})
+	go cs.pub(blurbId)
+	return err
+}
+
 func getPng(blurbId string) string {
 	var png []byte
 	// should i cache any of these in the db?

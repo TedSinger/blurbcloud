@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/boltdb/bolt"
 	"github.com/labstack/echo/v4"
 	"github.com/microcosm-cc/bluemonday"
 )
@@ -71,13 +70,7 @@ func (cs BlurbServer) putBlurb(c echo.Context) error {
 	p.AllowStyles("background-color", "color").MatchingHandler(rgbOfInts).Globally()
 	text = p.Sanitize(text)
 	println(blurbId + " : " + text)
-	err := cs.db.Update(func(tx *bolt.Tx) error {
-		tx.CreateBucketIfNotExists([]byte("Blurbs"))
-		b := tx.Bucket([]byte("Blurbs"))
-		err := b.Put([]byte(blurbId), []byte(text))
-		return err
-	})
-	go cs.pub(blurbId)
+	err := cs.putBlurbText(blurbId, text)
 	if err == nil {
 		return c.Redirect(http.StatusSeeOther, "/blurb/"+blurbId)
 	} else {
