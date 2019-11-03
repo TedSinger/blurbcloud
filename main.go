@@ -35,12 +35,13 @@ func GetTemplates() BlurbTemplates {
 type BlurbServer struct {
 	db *bolt.DB
 	BlurbTemplates
+	subs map[string]map[int]chan bool
 }
 
 func main() {
 	db, _ := bolt.Open("blurbs.db", 0600, nil)
 
-	cs := BlurbServer{db, GetTemplates()}
+	cs := BlurbServer{db, GetTemplates(), map[string]map[int]chan bool{}}
 	cs.db.Update(func(tx *bolt.Tx) error {
 		tx.CreateBucketIfNotExists([]byte("Blurbs"))
 		return nil
@@ -87,6 +88,7 @@ func (cs BlurbServer) getBlurbText(blurbId string) string {
 
 func getPng(blurbId string) string {
 	var png []byte
+	// should i cache any of these in the db?
 	png, err := qrcode.Encode("http://blurb.cloud/blurb/"+blurbId, qrcode.High, 120)
 	if err != nil {
 		return ""
@@ -98,4 +100,31 @@ func getPng(blurbId string) string {
 func rgbOfInts(s string) bool {
 	m, _ := regexp.Match("^ ?rgb\\( ?\\d+, ?\\d+, ?\\d+\\);?$", []byte(s))
 	return m
+}
+
+func (cs BlurbServer) sub(blurbId string) (chan bool, int) {
+	now := time.Now()
+	subId := 0
+	_, ok := cs.subs[blurbId]
+	if !ok {
+		cs.subs[blurbId] = map[int]chan bool{}
+	}
+	for ok := true; ok; _, ok = cs.subs[blurbId][subId] {
+		rand.Seed(now.UnixNano())
+		subId = rand.Int()
+	}
+	ch := make(chan bool)
+	cs.subs[blurbId][subId] = ch
+	return ch, subId
+}
+
+func (cs BlurbServer) unsub(blurbId string, subId int) {
+	delete(cs.subs[blurbId], subId)
+}
+
+func (cs BlurbServer) pub(blurbId string) {
+	// if a channel is closed, this blocks forever. potential resource leak, but it shouldn't hurt clients
+	for _, channel := range cs.subs[blurbId] {
+		channel <- true
+	}
 }

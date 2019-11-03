@@ -5,7 +5,6 @@ import (
 	"html/template"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/boltdb/bolt"
 	"github.com/labstack/echo/v4"
@@ -37,7 +36,9 @@ func (cs BlurbServer) streamUpdates(c echo.Context) error {
 	oldText := ""
 	c.Response().Header().Set(echo.HeaderContentType, "text/event-stream")
 	c.Response().Header().Set("Cache-control", "no-cache")
-	for {
+	ch, subId := cs.sub(blurbId)
+	defer cs.unsub(blurbId, subId)
+	for <-ch {
 		text := cs.getBlurbText(blurbId)
 		if text != oldText {
 			for _, chunk := range strings.Split(text, "\n") {
@@ -47,9 +48,8 @@ func (cs BlurbServer) streamUpdates(c echo.Context) error {
 			c.Response().Write([]byte("\n"))
 			c.Response().Flush()
 		}
-		// TODO: use gochannels instead of local polling
-		time.Sleep(1 * time.Second)
 	}
+	return nil
 }
 
 func (cs BlurbServer) getRoot(c echo.Context) error {
@@ -77,6 +77,7 @@ func (cs BlurbServer) putBlurb(c echo.Context) error {
 		err := b.Put([]byte(blurbId), []byte(text))
 		return err
 	})
+	go cs.pub(blurbId)
 	if err == nil {
 		return c.Redirect(http.StatusSeeOther, "/blurb/"+blurbId)
 	} else {
