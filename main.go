@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"html/template"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"regexp"
@@ -22,7 +21,6 @@ const METABLURB = `<u><em style='background-color: rgb(255, 240, 201)'>Blurb.clo
 
 type BlurbTemplates struct {
 	editorHtml *template.Template
-	editorJs   string
 	viewHtml   *template.Template
 }
 
@@ -34,9 +32,8 @@ type BlurbData struct {
 
 func GetTemplates() BlurbTemplates {
 	editorHtml, _ := template.ParseFiles("static/editor.html")
-	editorJs, _ := ioutil.ReadFile("static/editorFuncs.js")
 	viewHtml, _ := template.ParseFiles("static/view.html")
-	return BlurbTemplates{editorHtml, string(editorJs), viewHtml}
+	return BlurbTemplates{editorHtml, viewHtml}
 }
 
 type BlurbServer struct {
@@ -56,7 +53,7 @@ func main() {
 	e := echo.New()
 	e.Static("/static", "static")
 	e.GET("/", cs.getRoot)
-	e.GET("/stream/:blurb", cs.streamingUpdates)
+	e.GET("/stream/:blurb", cs.streamUpdates)
 	e.GET("/editor/:blurb", cs.getEditor)
 	e.GET("/raw/:blurb", cs.getRaw)
 	e.GET("/blurb/:blurb", cs.getBlurb)
@@ -78,7 +75,7 @@ func getNewBlurbId() string {
 	return ret
 }
 
-func (cs BlurbServer) streamingUpdates(c echo.Context) error {
+func (cs BlurbServer) streamUpdates(c echo.Context) error {
 	blurbId := c.Param("blurb")
 	oldText := ""
 	c.Response().Header().Set(echo.HeaderContentType, "text/event-stream")
