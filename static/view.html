@@ -1,0 +1,28 @@
+<head>
+    <script type="text/javascript" src="/static/viewfuncs.js"></script>
+    <style>
+        p { margin: 0em; }
+        #text { letter-spacing: 1px; line-height: 1.4; font-family: Sans-serif; word-wrap: break-word; height: auto;}
+    </style>
+</head>
+<html>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <body>
+        <div id="all">
+            <div id="text">
+                {{.Text}}
+            </div>
+            <!-- figure out how to do this without flexbox. old phones may not support it -->
+            <div style="display: flex; justify-content: center;align-items: center;">
+                <img src="data:image/png;base64, {{.Png}}" alt="qrcode link to this page"></img>
+                <a href="/editor/{{.Id}}"><button>Edit<br>me!</button></a>
+            </div>
+        </div>
+    </body>
+    <script type="text/javascript">
+        fit();
+        rawurl = "/raw/{{.Id}}";
+        streamurl = "/stream/{{.Id}}"
+        watchUpdates(rawurl, streamurl);
+    </script>
+</html>

@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"encoding/base64"
 	"fmt"
+	"html/template"
+	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"regexp"
@@ -18,14 +21,34 @@ import (
 const LETTERS = "abcdefghijklmnopqrstuvwxyz"
 const METABLURB = `<u><em style='background-color: rgb(255, 240, 201)'>Blurb.cloud</em></u> is a shared, local billboard. Take an old tablet or smartphone, mount it on the wall, and browse to this page to display the blurb. Anyone with the link can change the blurb, and anyone who passes by the display can see the link.`
 
+type BlurbTemplates struct {
+	editorHead string
+	editorJs   string
+	viewHtml   *template.Template
+}
+
+type BlurbData struct {
+	Id   string
+	Text string
+	Png  string
+}
+
+func GetTemplates() BlurbTemplates {
+	editorHead, _ := ioutil.ReadFile("static/editorHead.html")
+	editorJs, _ := ioutil.ReadFile("static/editorFuncs.js")
+	viewHtml, _ := template.ParseFiles("static/view.html")
+	return BlurbTemplates{string(editorHead), string(editorJs), viewHtml}
+}
+
 type BlurbServer struct {
 	db *bolt.DB
+	BlurbTemplates
 }
 
 func main() {
 	db, _ := bolt.Open("blurbs.db", 0600, nil)
 
-	cs := BlurbServer{db}
+	cs := BlurbServer{db, GetTemplates()}
 	cs.db.Update(func(tx *bolt.Tx) error {
 		tx.CreateBucketIfNotExists([]byte("Blurbs"))
 		return nil
@@ -74,19 +97,11 @@ func (cs BlurbServer) streamingUpdates(c echo.Context) error {
 		// TODO: use gochannels instead of local polling
 		time.Sleep(1 * time.Second)
 	}
-	return nil
 }
 
 func (cs BlurbServer) getEditor(c echo.Context) error {
 	blurbId := c.Param("blurb")
 	text := cs.getBlurbText(blurbId)
-	style := `<head>
-	<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-	<style>.ql-editor { letter-spacing: 1px; line-height: 1.4; height: auto; }
-	#quill { height: auto; }
-	</style>
-    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
-	</head>`
 	template := `
 	<html>
         %s
@@ -100,30 +115,14 @@ func (cs BlurbServer) getEditor(c echo.Context) error {
 			</div>
 		</form>
 		<script type="text/javascript">
-			var quill = new Quill('#quill', {
-				theme: 'snow',
-				modules: {'toolbar':['bold', 'italic', 'underline', 'strike', {'script':'sub'}, {'script':'super'}, { 'color': [] }, { 'background': [] }]}
-			});
-			var textarea = document.querySelector('textarea');
-			var toolbar = document.querySelector('.ql-toolbar');
-			var button = document.querySelector('input');
-			toolbar.insertBefore(button, toolbar.childNodes[0]);
-			var editor = document.querySelector('.ql-editor');
+			%s
 			// FIXME: interacts badly with quotes in the inline styles
-			quill.clipboard.dangerouslyPasteHTML("%s", "silent");
-			textarea.style.visibility = 'hidden';
-			quill.on('text-change', function(delta) {
-				textarea.value = editor.innerHTML;
-			});
-			var formstuff = document.querySelector("#formstuff");
-			var quilldiv = document.querySelector("#quill")
-			quilldiv.appendChild(toolbar)
-			formstuff.appendChild(textarea)
+			initQuill("%s")
 		</script>
 	</body>
 	</html>
 	`
-	return c.HTML(http.StatusOK, fmt.Sprintf(template, style, blurbId, text, text))
+	return c.HTML(http.StatusOK, fmt.Sprintf(template, cs.editorHead, blurbId, text, cs.editorJs, text))
 }
 
 func (cs BlurbServer) getRoot(c echo.Context) error {
@@ -163,43 +162,12 @@ func (cs BlurbServer) getRaw(c echo.Context) error {
 
 func (cs BlurbServer) getBlurb(c echo.Context) error {
 	blurbId := c.Param("blurb")
-	text := cs.getBlurbText(blurbId)
-	template := `
-	<head>
-		<script type="text/javascript" src="/static/viewfuncs.js"></script>
-		<style>
-			p { margin: 0em; }
-			#text { letter-spacing: 1px; line-height: 1.4; font-family: Sans-serif; word-wrap: break-word; height: auto;}
-		</style>
-	</head>
-	<html>
-		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<body>
-			<div id="all">
-				<div id="text">
-					%s
-				</div>
-				<div style="display: flex; justify-content: center;align-items: center;">
-					<img src="data:image/png;base64, %s" alt="qrcode link to this page"></img>
-					<a href="%s"><button>Edit<br>me!</button></a>
-				</div>
-			</div>
-		</body>
-		<script type="text/javascript">
-			fit();
-			rawurl = "%s";
-			streamurl = "%s"
-			watchUpdates(rawurl, streamurl);
-		</script>
-	</html>
-	`
-	return c.HTML(http.StatusOK,
-		fmt.Sprintf(template,
-			strings.ReplaceAll(string(text), "\n", "<br>"),
-			getPng(blurbId),
-			"/editor/"+blurbId,
-			"/raw/"+blurbId,
-			"/stream/"+blurbId))
+	blurbData := BlurbData{blurbId,
+		cs.getBlurbText(blurbId),
+		getPng(blurbId)}
+	ret := bytes.Buffer{}
+	cs.viewHtml.Execute(&ret, blurbData)
+	return c.HTML(http.StatusOK, ret.String())
 }
 
 func rgbOfInts(s string) bool {
