@@ -101,7 +101,7 @@ func (bs BlurbServer) writeBlurb(blurbId, text string) error {
 func readPng(blurbId string) string {
 	var png []byte
 	// should i cache any of these in the db?
-	png, err := qrcode.Encode("http://blurb.cloud/blurb/"+blurbId, qrcode.High, 120)
+	png, err := qrcode.Encode("http://blurb.cloud/blurb/"+blurbId, qrcode.Low, 120)
 	if err != nil {
 		return ""
 	} else {
