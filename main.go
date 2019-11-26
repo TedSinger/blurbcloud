@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/base64"
+	"flag"
+	"fmt"
 	"html/template"
 	"math/rand"
 	"regexp"
@@ -38,8 +40,8 @@ type BlurbServer struct {
 	subs map[string]map[int]chan bool
 }
 
-func main() {
-	db, _ := bolt.Open("blurbs.db", 0600, nil)
+func run(port int, dbName string) {
+	db, _ := bolt.Open(dbName, 0600, nil)
 
 	bs := BlurbServer{db, GetTemplates(), map[string]map[int]chan bool{}}
 	bs.db.Update(func(tx *bolt.Tx) error {
@@ -58,8 +60,15 @@ func main() {
 	e.GET("/blurb/:blurb", bs.getView)
 	// https://softwareengineering.stackexchange.com/questions/114156/why-are-there-are-no-put-and-delete-methods-on-html-forms
 	e.POST("/blurb/:blurb", bs.putBlurb)
-	e.Start(":22000")
+	e.Start(fmt.Sprintf(":%d", port))
 	defer db.Close()
+}
+
+func main() {
+	port := flag.Int("port", 22000, "")
+	dbName := flag.String("db", "blurb.db", "boltdb filename")
+	flag.Parse()
+	run(*port, *dbName)
 }
 
 func genNewBlurbId() string {
