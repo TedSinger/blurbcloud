@@ -5,6 +5,8 @@
         <style>
             p { margin: 0em; }
             #text { letter-spacing: 1px; line-height: 1.4; font-family: Sans-serif; word-wrap: break-word; height: auto;}
+            #navbox { display: flex; justify-content: center;align-items: center; }
+            #linkemphasis { border-style: solid; border-radius: 7px; border-width: 1px; padding: 5px; }
         </style>
     </head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,9 +16,9 @@
                 {{.Text}}
             </div>
             <!-- figure out how to do this without flexbox. old phones may not support it -->
-            <div style="display: flex; justify-content: center;align-items: center;">
+            <div id="navbox">
                 <img src="data:image/png;base64, {{.Png}}" alt="qrcode link to this page"></img>
-                <div style="border-style: solid; border-radius: 7px; border-width: 1px; padding: 5px;"><a href="/editor/{{.Id}}">Edit<br>me!</a></div>
+                <div id="linkemphasis"><a href="/editor/{{.Id}}">Edit<br>me!</a></div>
             </div>
         </div>
     </body>
