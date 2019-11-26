@@ -13,7 +13,7 @@ import (
 )
 
 const LETTERS = "abcdefghijklmnopqrstuvwxyz"
-const METABLURB = `<u><em style='background-color: rgb(255, 240, 201)'>Blurb.cloud</em></u> is a shared, local billboard. Take an old tablet or smartphone, mount it on the wall, and browse to this page to display the blurb. Anyone with the link can change the blurb, and anyone who passes by the display can see the link.`
+const METABLURB = `<u><em style='background-color: rgb(255, 240, 201)'>Blurb.cloud</em></u> is a shared, local billboard. Anyone who sees a blurb can change the blurb.`
 
 type BlurbTemplates struct {
 	editorHtml *template.Template
