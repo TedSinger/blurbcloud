@@ -66,7 +66,7 @@ func run(port int, dbName string) {
 
 func main() {
 	port := flag.Int("port", 22000, "")
-	dbName := flag.String("db", "blurb.db", "boltdb filename")
+	dbName := flag.String("db", "blurbs.db", "boltdb filename")
 	flag.Parse()
 	run(*port, *dbName)
 }
