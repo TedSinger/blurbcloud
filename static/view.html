@@ -1,6 +1,7 @@
 <html>
     <head>
         <link rel="icon" type="image/png" href="/static/favicon32.png">
+        <script src="https://unpkg.com/mithril/mithril.js"></script>
         <script type="text/javascript" src="/static/viewFuncs.js"></script>
         <style>
             p { margin: 0em; }
@@ -23,9 +24,10 @@
         </div>
     </body>
     <script type="text/javascript">
-        fit();
+        b = new BlurbHolder()
+        m.mount(document.querySelector("#text"), b);
         rawurl = "/raw/{{.Id}}";
         streamurl = "/stream/{{.Id}}"
-        watchUpdates(rawurl, streamurl);
+        watchUpdates(rawurl, streamurl, (x) => {b.useText(x)});
     </script>
 </html>
