@@ -51,6 +51,7 @@ func (bs BlurbServer) putBlurb(c echo.Context) error {
 	println(blurbId + " : " + text)
 	err := bs.writeBlurb(blurbId, text)
 	if err == nil {
+		go bs.pub(blurbId, text)
 		return c.Redirect(http.StatusSeeOther, "/blurb/"+blurbId)
 	} else {
 		return c.String(400, err.Error())

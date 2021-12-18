@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/boltdb/bolt"
 	"github.com/labstack/echo/v4"
 	qrcode "github.com/skip2/go-qrcode"
 )
@@ -35,19 +34,13 @@ func GetTemplates() BlurbTemplates {
 }
 
 type BlurbServer struct {
-	db *bolt.DB
+	BlurbDB
 	BlurbTemplates
 	PubSub
 }
 
 func run(port int, dbName string) {
-	db, _ := bolt.Open(dbName, 0600, nil)
-
-	bs := BlurbServer{db, GetTemplates(), GetPubSub()}
-	bs.db.Update(func(tx *bolt.Tx) error {
-		tx.CreateBucketIfNotExists([]byte("Blurbs"))
-		return nil
-	})
+	bs := BlurbServer{GetBlurbDB(dbName), GetTemplates(), GetPubSub()}
 	now := time.Now()
 	rand.Seed(now.UnixNano())
 
@@ -61,7 +54,7 @@ func run(port int, dbName string) {
 	// https://softwareengineering.stackexchange.com/questions/114156/why-are-there-are-no-put-and-delete-methods-on-html-forms
 	e.POST("/blurb/:blurb", bs.putBlurb)
 	e.Start(fmt.Sprintf(":%d", port))
-	defer db.Close()
+	defer bs.Close()
 }
 
 func main() {
@@ -79,32 +72,6 @@ func genNewBlurbId() string {
 	}
 
 	return ret
-}
-
-func (bs BlurbServer) readBlurb(blurbId string) string {
-	var text []byte
-	bs.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("Blurbs"))
-		text = b.Get([]byte(blurbId))
-		return nil
-	})
-	if text == nil {
-		return METABLURB
-	} else {
-		return string(text)
-	}
-}
-
-func (bs BlurbServer) writeBlurb(blurbId, text string) error {
-
-	err := bs.db.Update(func(tx *bolt.Tx) error {
-		tx.CreateBucketIfNotExists([]byte("Blurbs"))
-		b := tx.Bucket([]byte("Blurbs"))
-		err := b.Put([]byte(blurbId), []byte(text))
-		return err
-	})
-	go bs.pub(blurbId, text)
-	return err
 }
 
 func readPng(blurbId string) string {
