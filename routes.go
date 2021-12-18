@@ -30,27 +30,6 @@ func (bs BlurbServer) getEditor(c echo.Context) error {
 	return c.HTML(http.StatusOK, ret.String())
 }
 
-func (bs BlurbServer) getStreamingUpdates(c echo.Context) error {
-	blurbId := c.Param("blurb")
-	oldText := ""
-	c.Response().Header().Set(echo.HeaderContentType, "text/event-stream")
-	c.Response().Header().Set("Cache-control", "no-cache")
-	ch, subId := bs.sub(blurbId)
-	defer bs.unsub(blurbId, subId)
-	for <-ch {
-		text := bs.readBlurb(blurbId)
-		if text != oldText {
-			for _, chunk := range strings.Split(text, "\n") {
-				c.Response().Write([]byte("data: " + chunk + "\n"))
-			}
-			oldText = text
-			c.Response().Write([]byte("\n"))
-			c.Response().Flush()
-		}
-	}
-	return nil
-}
-
 func (bs BlurbServer) getRoot(c echo.Context) error {
 	c.Response().Header().Set("Cache-control", "no-cache")
 	return c.Redirect(301, "/blurb/"+genNewBlurbId())
@@ -76,4 +55,24 @@ func (bs BlurbServer) putBlurb(c echo.Context) error {
 	} else {
 		return c.String(400, err.Error())
 	}
+}
+
+func (bs BlurbServer) getStreamingUpdates(c echo.Context) error {
+	blurbId := c.Param("blurb")
+	c.Response().Header().Set(echo.HeaderContentType, "text/event-stream")
+	c.Response().Header().Set("Cache-control", "no-cache")
+	ch, subId := bs.sub(blurbId)
+	oldText := ""
+	defer bs.unsub(blurbId, subId) // this does not work - the client closing the connection is undetectable here, and this function never terminates
+	for text := range ch {
+		if text != oldText {
+			for _, chunk := range strings.Split(text, "\n") {
+				c.Response().Write([]byte("data: " + chunk + "\n"))
+			}
+			c.Response().Write([]byte("\n"))
+			c.Response().Flush()
+			oldText = text
+		}
+	}
+	return nil
 }
