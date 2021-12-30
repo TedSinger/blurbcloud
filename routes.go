@@ -10,6 +10,12 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 )
 
+type BlurbData struct {
+	Id   string
+	Text template.HTML
+	Png  string
+}
+
 func (bs BlurbServer) getView(c echo.Context) error {
 	blurbId := c.Param("blurb")
 	blurbData := BlurbData{blurbId,

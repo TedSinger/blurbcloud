@@ -21,12 +21,6 @@ type BlurbTemplates struct {
 	viewHtml   *template.Template
 }
 
-type BlurbData struct {
-	Id   string
-	Text template.HTML
-	Png  string
-}
-
 func GetTemplates() BlurbTemplates {
 	editorHtml, _ := template.ParseFiles("static/editor.html")
 	viewHtml, _ := template.ParseFiles("static/view.html")
