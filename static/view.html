@@ -1,34 +1,33 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
     <head>
+        <meta charset="utf-8" />
         <title>blurb.cloud</title>
         <link rel="icon" type="image/png" href="/static/favicon32.png">
         <script type="text/javascript" src="/static/mithril.min.js"></script>
         <script type="text/javascript" src="/static/viewFuncs.js"></script>
-        <style>
-            p { margin: 0em; }
-            #text { letter-spacing: 1px; line-height: 1.4; font-family: Sans-serif; word-wrap: break-word; height: auto;}
-            #navbox { display: flex; justify-content: center;align-items: center; }
-            #linkemphasis { border-style: solid; border-radius: 7px; border-width: 1px; padding: 5px; }
-        </style>
+        <script src="/static/quill-1.3.6.min.js"></script>
+        <link href="/static/quill-1.3.6.snow.css" rel="stylesheet">
+        <link href="/static/styles.css" rel="stylesheet">
     </head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <body>
         <div id="all">
-            <div id="text">
-                {{.Text}}
-            </div>
-            <!-- figure out how to do this without flexbox. old phones may not support it -->
             <div id="navbox">
                 <img src="data:image/png;base64, {{.Png}}" alt="qrcode link to this page"></img>
-                <div id="linkemphasis"><a href="/editor/{{.Id}}">Edit<br>me!</a></div>
+            </div>
+            <div id="blurb">
+                {{.Text}}
             </div>
         </div>
     </body>
     <script type="text/javascript">
-        b = new BlurbHolder()
-        m.mount(document.querySelector("#text"), b);
-        rawurl = "/raw/{{.Id}}";
-        streamurl = "/stream/{{.Id}}"
-        watchUpdates(rawurl, streamurl, (x) => {b.useText(x)});
+        b = new BlurbHolder("/blurb/{{.Id}}", 1);
+        fitText();
+        document.addEventListener("DOMContentLoaded", function () {
+            rawurl = "/raw/{{.Id}}";
+            streamurl = "/stream/{{.Id}}"
+            watchUpdates(rawurl, streamurl, (x) => {b.useText(x)});
+        });
     </script>
 </html>

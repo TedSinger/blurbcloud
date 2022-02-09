@@ -8,23 +8,23 @@ import (
 	"math/rand"
 	"regexp"
 	"time"
-
+	"bytes"
+	"encoding/json"
 	"github.com/labstack/echo/v4"
 	qrcode "github.com/skip2/go-qrcode"
+	"github.com/microcosm-cc/bluemonday"
 )
 
 const LETTERS = "abcdefghijklmnopqrstuvwxyz"
 const METABLURB = `<u><em style='background-color: rgb(255, 240, 201)'>Blurb.cloud</em></u> is a shared, local billboard. Anyone who sees a blurb can change the blurb.`
 
 type BlurbTemplates struct {
-	editorHtml *template.Template
 	viewHtml   *template.Template
 }
 
 func GetTemplates() BlurbTemplates {
-	editorHtml, _ := template.ParseFiles("static/editor.html")
 	viewHtml, _ := template.ParseFiles("static/view.html")
-	return BlurbTemplates{editorHtml, viewHtml}
+	return BlurbTemplates{viewHtml}
 }
 
 type BlurbServer struct {
@@ -42,11 +42,9 @@ func run(port int, dbName string) {
 	e.Static("/static", "static")
 	e.GET("/", bs.getRoot)
 	e.GET("/stream/:blurb", bs.getStreamingUpdates)
-	e.GET("/editor/:blurb", bs.getEditor)
 	e.GET("/raw/:blurb", bs.getRaw)
 	e.GET("/blurb/:blurb", bs.getView)
-	// https://softwareengineering.stackexchange.com/questions/114156/why-are-there-are-no-put-and-delete-methods-on-html-forms
-	e.POST("/blurb/:blurb", bs.putBlurb)
+	e.PUT("/blurb/:blurb", bs.putBlurb)
 	e.Start(fmt.Sprintf(":%d", port))
 	defer bs.Close()
 }
@@ -82,4 +80,86 @@ func readPng(blurbId string) string {
 func rgbOfInts(s string) bool {
 	m, _ := regexp.Match("^ ?rgb\\( ?\\d+, ?\\d+, ?\\d+\\);?$", []byte(s))
 	return m
+}
+
+type BlurbData struct {
+	BlurbVersion
+	Png  string
+}
+
+type BlurbVersion struct {
+	Id   string
+	Version int
+	Text template.HTML
+}
+
+func DefaultBlurbVersion(id string) BlurbVersion {
+	return BlurbVersion{id, 0, METABLURB}
+}
+
+func BlurbVersionFromJson(data []byte) BlurbVersion {
+	ubv := new(UnsanitizedBlurbVersion)
+	err := json.Unmarshal(data, ubv)
+	if err != nil {
+		panic(err)
+	}
+	return BlurbVersion{ubv.Id, ubv.Version, template.HTML(ubv.Text)}
+}
+
+type UnsanitizedBlurbVersion struct {
+	Id   string `param:"blurb"`
+	Version int `json:"blurb_version"`
+	Text string `json:"blurb_text"`
+}
+
+type SanitizedBlurbVersion struct {
+	Id   string `param:"blurb"`
+	Version int `json:"blurb_version"`
+	Text string `json:"blurb_text"`
+}
+
+func (sbv SanitizedBlurbVersion) toBytes() []byte {
+	ret, err := json.Marshal(sbv)
+	if err != nil {
+		panic(err)
+	}
+	return ret
+}
+
+func (ubv UnsanitizedBlurbVersion) Sanitize() SanitizedBlurbVersion {
+	p := bluemonday.UGCPolicy()
+	p.AllowAttrs("style").Globally()
+	p.AllowStyles("background-color", "color").MatchingHandler(rgbOfInts).Globally()
+	return SanitizedBlurbVersion{ubv.Id, ubv.Version, p.Sanitize(ubv.Text)}
+}
+
+func (bs BlurbServer) BlurbHTML(blurbId string) string {
+	data := bs.readBlurb(blurbId)
+	var bv BlurbVersion
+	if data == nil {
+		bv = DefaultBlurbVersion(blurbId)
+	} else {
+		bv = BlurbVersionFromJson(data)	
+	}
+
+	blurbData := BlurbData{bv,
+		readPng(blurbId)}
+	ret := bytes.Buffer{}
+	bs.viewHtml.Execute(&ret, blurbData)
+	return ret.String()
+}
+
+func (bs BlurbServer) SaveBlurb(sbv SanitizedBlurbVersion) error {
+	data := bs.readBlurb(sbv.Id)
+	var bv BlurbVersion
+	if data == nil {
+		bv = DefaultBlurbVersion(sbv.Id)
+	} else {
+		bv = BlurbVersionFromJson(data)	
+	}
+	if bv.Version < sbv.Version {
+		return bs.writeBlurb(sbv.Id, sbv.toBytes())	
+	} else {
+		return nil
+	}
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/boltdb/bolt"
+
 )
 
 type BlurbDB struct {
@@ -22,25 +23,25 @@ func (bdb BlurbDB) Close() {
 	bdb.db.Close()
 }
 
-func (bdb BlurbDB) readBlurb(blurbId string) string {
-	var text []byte
+func (bdb BlurbDB) readBlurb(blurbId string) []byte {
+	var data []byte
 	bdb.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Blurbs"))
-		text = b.Get([]byte(blurbId))
+		data = b.Get([]byte(blurbId))
 		return nil
 	})
-	if text == nil {
-		return METABLURB
+	if data == nil {
+		return nil
 	} else {
-		return string(text)
+		return data
 	}
 }
 
-func (bdb BlurbDB) writeBlurb(blurbId, text string) error {
+func (bdb BlurbDB) writeBlurb(blurbId string, data []byte) error {
 	err := bdb.db.Update(func(tx *bolt.Tx) error {
 		tx.CreateBucketIfNotExists([]byte("Blurbs"))
 		b := tx.Bucket([]byte("Blurbs"))
-		err := b.Put([]byte(blurbId), []byte(text))
+		err := b.Put([]byte(blurbId), data)
 		return err
 	})
 	return err

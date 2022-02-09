@@ -1,39 +1,17 @@
 package main
 
 import (
-	"bytes"
-	"html/template"
 	"net/http"
 	"strings"
 
 	"github.com/labstack/echo/v4"
-	"github.com/microcosm-cc/bluemonday"
 )
 
-type BlurbData struct {
-	Id   string
-	Text template.HTML
-	Png  string
-}
+
 
 func (bs BlurbServer) getView(c echo.Context) error {
 	blurbId := c.Param("blurb")
-	blurbData := BlurbData{blurbId,
-		template.HTML(bs.readBlurb(blurbId)),
-		readPng(blurbId)}
-	ret := bytes.Buffer{}
-	bs.viewHtml.Execute(&ret, blurbData)
-	return c.HTML(http.StatusOK, ret.String())
-}
-
-func (bs BlurbServer) getEditor(c echo.Context) error {
-	blurbId := c.Param("blurb")
-	blurbData := BlurbData{blurbId,
-		template.HTML(bs.readBlurb(blurbId)),
-		""}
-	ret := bytes.Buffer{}
-	bs.editorHtml.Execute(&ret, blurbData)
-	return c.HTML(http.StatusOK, ret.String())
+	return c.HTML(http.StatusOK, bs.BlurbHTML(blurbId))
 }
 
 func (bs BlurbServer) getRoot(c echo.Context) error {
@@ -43,22 +21,22 @@ func (bs BlurbServer) getRoot(c echo.Context) error {
 
 func (bs BlurbServer) getRaw(c echo.Context) error {
 	blurbId := c.Param("blurb")
-	text := bs.readBlurb(blurbId)
+	text := bs.BlurbHTML(blurbId)
 	return c.String(200, text)
 }
 
 func (bs BlurbServer) putBlurb(c echo.Context) error {
-	blurbId := c.Param("blurb")
-	text := c.FormValue("text")
-	p := bluemonday.UGCPolicy()
-	p.AllowAttrs("style").Globally()
-	p.AllowStyles("background-color", "color").MatchingHandler(rgbOfInts).Globally()
-	text = p.Sanitize(text)
-	println(blurbId + " : " + text)
-	err := bs.writeBlurb(blurbId, text)
+	ubv := new(UnsanitizedBlurbVersion)
+	if err := c.Bind(ubv); err != nil {
+		println(err)
+		panic(err)
+	}
+	sbv := ubv.Sanitize()
+	println(sbv.Id + " : " + sbv.Text)
+	err := bs.SaveBlurb(sbv)
 	if err == nil {
-		go bs.pub(blurbId, text)
-		return c.Redirect(http.StatusSeeOther, "/blurb/"+blurbId)
+		go bs.pub(sbv)
+		return c.String(200, "OK")
 	} else {
 		return c.String(400, err.Error())
 	}
@@ -71,14 +49,14 @@ func (bs BlurbServer) getStreamingUpdates(c echo.Context) error {
 	ch, subId := bs.sub(blurbId)
 	oldText := ""
 	defer bs.unsub(blurbId, subId) // this does not work - the client closing the connection is undetectable here, and this function never terminates
-	for text := range ch {
-		if text != oldText {
-			for _, chunk := range strings.Split(text, "\n") {
+	for blurb_version := range ch {
+		if blurb_version.Text != oldText {
+			for _, chunk := range strings.Split(string(blurb_version.toBytes()), "\n") {
 				c.Response().Write([]byte("data: " + chunk + "\n"))
 			}
 			c.Response().Write([]byte("\n"))
 			c.Response().Flush()
-			oldText = text
+			oldText = blurb_version.Text
 		}
 	}
 	return nil
