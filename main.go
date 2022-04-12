@@ -28,13 +28,13 @@ func GetTemplates() BlurbTemplates {
 }
 
 type BlurbServer struct {
-	BlurbDB
 	BlurbTemplates
 	PubSub
+	BlurbDB
 }
 
 func run(port int, dbName string) {
-	bs := BlurbServer{GetBlurbDB(dbName), GetTemplates(), GetPubSub()}
+	bs := BlurbServer{GetTemplates(), GetPubSub(), GetBlurbDB("blurbs.sqlite", "queries.sql")}
 	now := time.Now()
 	rand.Seed(now.UnixNano())
 
@@ -46,7 +46,7 @@ func run(port int, dbName string) {
 	e.GET("/blurb/:blurb", bs.getView)
 	e.PUT("/blurb/:blurb", bs.putBlurb)
 	e.Start(fmt.Sprintf(":%d", port))
-	defer bs.Close()
+	// defer bs.Close() FIXME: close the sqlite connection
 }
 
 func main() {
@@ -89,7 +89,7 @@ type BlurbData struct {
 
 type BlurbVersion struct {
 	Id   string
-	Version int
+	Version int64
 	Text template.HTML
 }
 
@@ -108,13 +108,13 @@ func BlurbVersionFromJson(data []byte) BlurbVersion {
 
 type UnsanitizedBlurbVersion struct {
 	Id   string `param:"blurb"`
-	Version int `json:"blurb_version"`
+	Version int64 `json:"blurb_version"`
 	Text string `json:"blurb_text"`
 }
 
 type SanitizedBlurbVersion struct {
 	Id   string `param:"blurb"`
-	Version int `json:"blurb_version"`
+	Version int64 `json:"blurb_version"`
 	Text string `json:"blurb_text"`
 }
 
@@ -133,13 +133,20 @@ func (ubv UnsanitizedBlurbVersion) Sanitize() SanitizedBlurbVersion {
 	return SanitizedBlurbVersion{ubv.Id, ubv.Version, p.Sanitize(ubv.Text)}
 }
 
+
 func (bs BlurbServer) BlurbHTML(blurbId string) string {
-	data := bs.readBlurb(blurbId)
-	var bv BlurbVersion
-	if data == nil {
-		bv = DefaultBlurbVersion(blurbId)
-	} else {
-		bv = BlurbVersionFromJson(data)	
+	args := []map[string]interface{}{{
+		"id": blurbId, 
+	}}
+	println(args)
+	data, _ := bs.RunQuery(bs.queries["get_blurb"], args)
+	bv := DefaultBlurbVersion(blurbId)
+	for _, group := range data {
+		for _, row := range group {
+			println(row)
+			bv.Version = row["version"].(int64)
+			bv.Text = template.HTML(row["body"].(string))
+		}
 	}
 
 	blurbData := BlurbData{bv,
@@ -150,16 +157,16 @@ func (bs BlurbServer) BlurbHTML(blurbId string) string {
 }
 
 func (bs BlurbServer) SaveBlurb(sbv SanitizedBlurbVersion) error {
-	data := bs.readBlurb(sbv.Id)
-	var bv BlurbVersion
-	if data == nil {
-		bv = DefaultBlurbVersion(sbv.Id)
-	} else {
-		bv = BlurbVersionFromJson(data)	
+	args := []map[string]interface{}{{
+		"id": sbv.Id, 
+		"version": sbv.Version, 
+		"body": sbv.Text,
+	}}
+	println(bs.queries["put_blurb"])
+	_, err := bs.RunQuery(bs.queries["put_blurb"], args)
+	if err != nil {
+		println(err)
+		panic(err)
 	}
-	if bv.Version < sbv.Version {
-		return bs.writeBlurb(sbv.Id, sbv.toBytes())	
-	} else {
-		return nil
-	}
+	return err
 }
