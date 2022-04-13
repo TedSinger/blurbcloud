@@ -16,7 +16,6 @@ import (
 )
 
 const LETTERS = "abcdefghijklmnopqrstuvwxyz"
-const METABLURB = `<u><em style='background-color: rgb(255, 240, 201)'>Blurb.cloud</em></u> is a shared, local billboard. Anyone who sees a blurb can change the blurb.`
 
 type BlurbTemplates struct {
 	viewHtml   *template.Template
@@ -83,39 +82,24 @@ func rgbOfInts(s string) bool {
 }
 
 type BlurbData struct {
-	BlurbVersion
+	SanitizedBlurbVersion
 	Png  string
-}
-
-type BlurbVersion struct {
-	Id   string
-	Version int64
-	Text template.HTML
-}
-
-func DefaultBlurbVersion(id string) BlurbVersion {
-	return BlurbVersion{id, 0, METABLURB}
-}
-
-func BlurbVersionFromJson(data []byte) BlurbVersion {
-	ubv := new(UnsanitizedBlurbVersion)
-	err := json.Unmarshal(data, ubv)
-	if err != nil {
-		panic(err)
-	}
-	return BlurbVersion{ubv.Id, ubv.Version, template.HTML(ubv.Text)}
 }
 
 type UnsanitizedBlurbVersion struct {
 	Id   string `param:"blurb"`
 	Version int64 `json:"blurb_version"`
-	Text string `json:"blurb_text"`
+	Body string `json:"blurb_text"`
 }
 
 type SanitizedBlurbVersion struct {
 	Id   string `param:"blurb"`
 	Version int64 `json:"blurb_version"`
-	Text string `json:"blurb_text"`
+	Body string `json:"blurb_text"`
+}
+
+func (sbv SanitizedBlurbVersion) AsHTML() template.HTML {
+	return template.HTML(sbv.Body)
 }
 
 func (sbv SanitizedBlurbVersion) toBytes() []byte {
@@ -130,26 +114,28 @@ func (ubv UnsanitizedBlurbVersion) Sanitize() SanitizedBlurbVersion {
 	p := bluemonday.UGCPolicy()
 	p.AllowAttrs("style").Globally()
 	p.AllowStyles("background-color", "color").MatchingHandler(rgbOfInts).Globally()
-	return SanitizedBlurbVersion{ubv.Id, ubv.Version, p.Sanitize(ubv.Text)}
+	return SanitizedBlurbVersion{ubv.Id, ubv.Version, p.Sanitize(ubv.Body)}
 }
 
 
 func (bs BlurbServer) BlurbHTML(blurbId string) string {
-	args := []map[string]interface{}{{
+	args := map[string]interface{}{
 		"id": blurbId, 
-	}}
-	println(args)
-	data, _ := bs.RunQuery(bs.queries["get_blurb"], args)
-	bv := DefaultBlurbVersion(blurbId)
-	for _, group := range data {
-		for _, row := range group {
-			println(row)
-			bv.Version = row["version"].(int64)
-			bv.Text = template.HTML(row["body"].(string))
-		}
+	}
+	var sbv SanitizedBlurbVersion
+
+	stmt, err := bs.db.PrepareNamed(bs.queries["get_blurb"])
+	if err != nil {
+		println(err)
+		panic(err)
+	}
+	err = stmt.Get(&sbv, args)
+	if err != nil {
+		println(err)
+		panic(err)
 	}
 
-	blurbData := BlurbData{bv,
+	blurbData := BlurbData{sbv,
 		readPng(blurbId)}
 	ret := bytes.Buffer{}
 	bs.viewHtml.Execute(&ret, blurbData)
@@ -157,13 +143,8 @@ func (bs BlurbServer) BlurbHTML(blurbId string) string {
 }
 
 func (bs BlurbServer) SaveBlurb(sbv SanitizedBlurbVersion) error {
-	args := []map[string]interface{}{{
-		"id": sbv.Id, 
-		"version": sbv.Version, 
-		"body": sbv.Text,
-	}}
-	println(bs.queries["put_blurb"])
-	_, err := bs.RunQuery(bs.queries["put_blurb"], args)
+	_, err := bs.db.NamedExec(bs.queries["put_blurb"], &sbv)
+	
 	if err != nil {
 		println(err)
 		panic(err)

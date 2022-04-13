@@ -32,7 +32,7 @@ func (bs BlurbServer) putBlurb(c echo.Context) error {
 		panic(err)
 	}
 	sbv := ubv.Sanitize()
-	println(sbv.Id + " : " + sbv.Text)
+
 	err := bs.SaveBlurb(sbv)
 	if err == nil {
 		go bs.pub(sbv)
@@ -50,13 +50,13 @@ func (bs BlurbServer) getStreamingUpdates(c echo.Context) error {
 	oldText := ""
 	defer bs.unsub(blurbId, subId) // this does not work - the client closing the connection is undetectable here, and this function never terminates
 	for blurb_version := range ch {
-		if blurb_version.Text != oldText {
+		if blurb_version.Body != oldText {
 			for _, chunk := range strings.Split(string(blurb_version.toBytes()), "\n") {
 				c.Response().Write([]byte("data: " + chunk + "\n"))
 			}
 			c.Response().Write([]byte("\n"))
 			c.Response().Flush()
-			oldText = blurb_version.Text
+			oldText = blurb_version.Body
 		}
 	}
 	return nil
