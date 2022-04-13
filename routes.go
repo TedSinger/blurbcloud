@@ -11,7 +11,8 @@ import (
 
 func (bs BlurbServer) getView(c echo.Context) error {
 	blurbId := c.Param("blurb")
-	return c.HTML(http.StatusOK, bs.BlurbHTML(blurbId))
+	sbv := bs.GetBlurbById(blurbId)
+	return c.HTML(http.StatusOK, bs.AsFullHTML(sbv))
 }
 
 func (bs BlurbServer) getRoot(c echo.Context) error {
@@ -21,8 +22,8 @@ func (bs BlurbServer) getRoot(c echo.Context) error {
 
 func (bs BlurbServer) getRaw(c echo.Context) error {
 	blurbId := c.Param("blurb")
-	text := bs.BlurbHTML(blurbId)
-	return c.String(200, text)
+	sbv := bs.GetBlurbById(blurbId)
+	return c.String(200, bs.AsFullHTML(sbv))
 }
 
 func (bs BlurbServer) putBlurb(c echo.Context) error {

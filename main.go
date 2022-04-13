@@ -98,7 +98,7 @@ type SanitizedBlurbVersion struct {
 	Body string `json:"blurb_text"`
 }
 
-func (sbv SanitizedBlurbVersion) AsHTML() template.HTML {
+func (sbv SanitizedBlurbVersion) AsInnerHTML() template.HTML {
 	return template.HTML(sbv.Body)
 }
 
@@ -110,6 +110,14 @@ func (sbv SanitizedBlurbVersion) toBytes() []byte {
 	return ret
 }
 
+func (bs BlurbServer) AsFullHTML(sbv SanitizedBlurbVersion) string {
+	blurbData := BlurbData{sbv,
+		readPng(sbv.Id)}
+	ret := bytes.Buffer{}
+	bs.viewHtml.Execute(&ret, blurbData)
+	return ret.String()
+}
+
 func (ubv UnsanitizedBlurbVersion) Sanitize() SanitizedBlurbVersion {
 	p := bluemonday.UGCPolicy()
 	p.AllowAttrs("style").Globally()
@@ -118,11 +126,12 @@ func (ubv UnsanitizedBlurbVersion) Sanitize() SanitizedBlurbVersion {
 }
 
 
-func (bs BlurbServer) BlurbHTML(blurbId string) string {
+func (bs BlurbServer) GetBlurbById(blurbId string) SanitizedBlurbVersion {
 	args := map[string]interface{}{
 		"id": blurbId, 
 	}
 	var sbv SanitizedBlurbVersion
+
 
 	stmt, err := bs.db.PrepareNamed(bs.queries["get_blurb"])
 	if err != nil {
@@ -134,12 +143,8 @@ func (bs BlurbServer) BlurbHTML(blurbId string) string {
 		println(err)
 		panic(err)
 	}
-
-	blurbData := BlurbData{sbv,
-		readPng(blurbId)}
-	ret := bytes.Buffer{}
-	bs.viewHtml.Execute(&ret, blurbData)
-	return ret.String()
+	println(sbv.Version)
+	return sbv
 }
 
 func (bs BlurbServer) SaveBlurb(sbv SanitizedBlurbVersion) error {

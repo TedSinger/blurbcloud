@@ -17,12 +17,12 @@
                 <img src="data:image/png;base64, {{.Png}}" alt="qrcode link to this page"></img>
             </div>
             <div id="blurb">
-                {{.AsHTML}}
+                {{.AsInnerHTML}}
             </div>
         </div>
     </body>
     <script type="text/javascript">
-        b = new BlurbHolder("/blurb/{{.Id}}", 1);
+        b = new BlurbHolder("/blurb/{{.Id}}", {{.Version}});
         fitText();
         document.addEventListener("DOMContentLoaded", function () {
             rawurl = "/raw/{{.Id}}";
