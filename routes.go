@@ -34,11 +34,12 @@ func (bs BlurbServer) putBlurb(c echo.Context) error {
 	}
 	sbv := ubv.Sanitize()
 
-	err := bs.SaveBlurb(sbv)
+	_, err := bs.db.NamedExec(bs.queries["put_blurb"], &sbv)
 	if err == nil {
 		go bs.pub(sbv)
 		return c.String(200, "OK")
 	} else {
+		println(err)
 		return c.String(400, err.Error())
 	}
 }

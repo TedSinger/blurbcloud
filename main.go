@@ -146,13 +146,3 @@ func (bs BlurbServer) GetBlurbById(blurbId string) SanitizedBlurbVersion {
 	println(sbv.Version)
 	return sbv
 }
-
-func (bs BlurbServer) SaveBlurb(sbv SanitizedBlurbVersion) error {
-	_, err := bs.db.NamedExec(bs.queries["put_blurb"], &sbv)
-	
-	if err != nil {
-		println(err)
-		panic(err)
-	}
-	return err
-}
