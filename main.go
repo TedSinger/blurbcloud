@@ -33,7 +33,7 @@ type BlurbServer struct {
 }
 
 func run(port int, dbName string) {
-	bs := BlurbServer{GetTemplates(), GetPubSub(), GetBlurbDB("blurbs.sqlite", "queries.sql")}
+	bs := BlurbServer{GetTemplates(), GetPubSub(), GetBlurbDB(dbName, "queries.sql")}
 	now := time.Now()
 	rand.Seed(now.UnixNano())
 
@@ -50,7 +50,7 @@ func run(port int, dbName string) {
 
 func main() {
 	port := flag.Int("port", 22000, "")
-	dbName := flag.String("db", "blurbs.db", "boltdb filename")
+	dbName := flag.String("db", "blurbs.db", "sqlite filename")
 	flag.Parse()
 	run(*port, *dbName)
 }
@@ -67,7 +67,6 @@ func genNewBlurbId() string {
 
 func readPng(blurbId string) string {
 	var png []byte
-	// should i cache any of these in the db?
 	png, err := qrcode.Encode("http://blurb.cloud/blurb/"+blurbId, qrcode.Low, 120)
 	if err != nil {
 		return ""
