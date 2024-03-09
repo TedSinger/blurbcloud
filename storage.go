@@ -4,7 +4,8 @@ import (
 	"github.com/qustavo/dotsql"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
-
+	"database/sql"
+    "log"
 )
 
 type BlurbDB struct {
@@ -13,6 +14,11 @@ type BlurbDB struct {
 }
 
 func GetBlurbDB(dbName, queryFileName string) BlurbDB {
+	_db, err := sql.Open("sqlite3", dbName)
+	if err != nil {
+		log.Fatal(err)
+	}
+	_db.Close()
 	db := sqlx.MustConnect("sqlite3", dbName)
 	dot, _ := dotsql.LoadFromFile(queryFileName) // FIXME: pull routeMapFromDir from parade
 
