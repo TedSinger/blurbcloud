@@ -6,12 +6,15 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"database/sql"
     "log"
+	"embed"
 )
 
 type BlurbDB struct {
 	db        sqlx.DB
 	queries map[string]string
 }
+//go:embed queries.sql
+var queries embed.FS
 
 func GetBlurbDB(dbName, queryFileName string) BlurbDB {
 	_db, err := sql.Open("sqlite3", dbName)
@@ -20,7 +23,8 @@ func GetBlurbDB(dbName, queryFileName string) BlurbDB {
 	}
 	_db.Close()
 	db := sqlx.MustConnect("sqlite3", dbName)
-	dot, _ := dotsql.LoadFromFile(queryFileName) // FIXME: pull routeMapFromDir from parade
+	r, _ := queries.Open("queries.sql")
+	dot, _ := dotsql.Load(r)
 
 	bdb := BlurbDB{*db, dot.QueryMap()}
 	println(bdb.queries["init"])

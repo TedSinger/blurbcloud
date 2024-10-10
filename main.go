@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"time"
 	"bytes"
+	"embed"
 	"encoding/json"
 	"github.com/labstack/echo/v4"
 	qrcode "github.com/skip2/go-qrcode"
@@ -21,8 +22,14 @@ type BlurbTemplates struct {
 	viewHtml   *template.Template
 }
 
+//go:embed static/*
+var static embed.FS
+
 func GetTemplates() BlurbTemplates {
-	viewHtml, _ := template.ParseFiles("static/view.html")
+	viewHtml, err := template.ParseFS(static, "static/view.html")
+	if err != nil {
+		panic(err)
+	}
 	return BlurbTemplates{viewHtml}
 }
 
@@ -38,7 +45,7 @@ func run(port int, dbName string) {
 	rand.Seed(now.UnixNano())
 
 	e := echo.New()
-	e.Static("/static", "static")
+	e.StaticFS("/", static)
 	e.GET("/", bs.getRoot)
 	e.GET("/stream/:blurb", bs.getStreamingUpdates)
 	e.GET("/raw/:blurb", bs.getRaw)
