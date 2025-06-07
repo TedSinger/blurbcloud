@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>blurb.cloud</title>
+        <link rel="icon" type="image/png" href="/favicon32.png">
+        <script type="text/javascript" src="/mithril.min.js"></script>
+        <script type="text/javascript" src="/viewFuncs.js"></script>
+        <script src="/quill-1.3.6.min.js"></script>
+        <link href="/quill-1.3.6.snow.css" rel="stylesheet">
+        <link href="/styles.css" rel="stylesheet">
+    </head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <body>
+        <div id="all">
+            <div id="navbox">
+                <img width="100px" height="100px" style="image-rendering: crisp-edges;" src="data:image/png;base64, qrcodegoeshere" alt="qrcode link to this page"></img>
+            </div>
+            <div id="blurb">
+                blurbtextgoeshere
+            </div>
+        </div>
+    </body>
+    <script type="text/javascript">
+        b = new BlurbHolder("/blurb/idgoeshere", versiongoeshere);
+        fitText();
+        document.addEventListener("DOMContentLoaded", function () {
+            rawurl = "/raw/idgoeshere";
+            streamurl = "/stream/idgoeshere"
+            watchUpdates(rawurl, streamurl, (x) => {b.useText(x)});
+        });
+    </script>
+</html>
